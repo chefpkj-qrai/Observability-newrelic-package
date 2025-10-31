@@ -62,11 +62,9 @@ export function initializeAxiosTracing(): void {
     })
 
     axiosTracingInitialized = true
-    console.log('✅ Axios distributed tracing initialized')
   } catch (error) {
     // Axios is not installed or not available - this is OK
     // The package can work without axios for projects that don't use it
-    console.log('⚠️  Axios not found - skipping axios tracing (this is OK if you don\'t use axios)')
   }
 }
 

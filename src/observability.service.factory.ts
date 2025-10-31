@@ -21,7 +21,7 @@ class NewRelicObservabilityService implements ObservabilityService {
       
       newrelic.addCustomAttributes(attributes)
     } catch (error) {
-      console.error('Failed to add New Relic custom attributes:', error)
+      // Failed to add New Relic custom attributes - fail silently
     }
   }
 
@@ -29,7 +29,7 @@ class NewRelicObservabilityService implements ObservabilityService {
     try {
       newrelic.setTransactionName(name)
     } catch (error) {
-      console.error('Failed to set New Relic transaction name:', error)
+      // Failed to set New Relic transaction name - fail silently
     }
   }
 
@@ -37,7 +37,7 @@ class NewRelicObservabilityService implements ObservabilityService {
     try {
       newrelic.addCustomSpanAttributes(attributes)
     } catch (error) {
-      console.error('Failed to add New Relic span attributes:', error)
+      // Failed to add New Relic span attributes - fail silently
     }
   }
 

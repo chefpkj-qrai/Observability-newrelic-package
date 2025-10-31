@@ -8,7 +8,6 @@
  * Works with both direct MongoDB usage and Mongoose (since Mongoose uses MongoDB driver underneath).
  */
 import { MongoClient } from 'mongodb'
-import { scrub } from './scrub'
 import { createObservabilityService } from './observability.service.factory'
 
 const observabilityService = createObservabilityService()
@@ -133,76 +132,44 @@ function setupMonitoring(): void {
           // Don't let monitoring errors break the application
         }
       })
-
-    console.log('✅ MongoDB command monitoring installed')
   } catch (error) {
-    console.error('Failed to setup MongoDB monitoring:', error)
+    // Failed to setup MongoDB monitoring - fail silently
   }
 }
 
 /**
- * Build a safe, scrubbed preview of the MongoDB command
+ * Build a preview of the MongoDB command
+ * Only shows filter/query information, not data being inserted or updated
  */
 function buildCommandPreview(commandName: string, command: any): any {
   try {
-    switch (commandName) {
-      case 'find':
-        return {
-          filter: scrub(command.filter),
-          projection: command.projection ? Object.keys(command.projection) : undefined,
-          limit: command.limit,
-          skip: command.skip,
-        }
+    // Extract filter/query for all command types
+    const filter = 
+      command.filter ||
+      command.query ||
+      command.updates?.[0]?.q ||
+      command.q ||
+      command.deletes?.[0]?.q
 
-      case 'findOne':
-        return {
-          filter: scrub(command.filter),
-        }
+    // For aggregate, show pipeline stages overview
+    if (commandName === 'aggregate' && Array.isArray(command.pipeline)) {
+      return {
+        filter: filter,
+        pipelineStages: command.pipeline.map((stage: any) => Object.keys(stage)[0]).join(' → '),
+      }
+    }
 
-      case 'insert':
-        return {
-          docsCount: Array.isArray(command.documents) ? command.documents.length : 1,
-        }
+    // For all other commands, just show the filter if available
+    if (filter) {
+      return {
+        filter: filter,
+      }
+    }
 
-      case 'update':
-        return {
-          filter: scrub(command.updates?.[0]?.q || command.q),
-          update: scrub(command.updates?.[0]?.u || command.u),
-        }
-
-      case 'delete':
-        return {
-          filter: scrub(command.deletes?.[0]?.q || command.q),
-        }
-
-      case 'aggregate':
-        return {
-          pipeline: scrub(command.pipeline),
-          pipelineStages: Array.isArray(command.pipeline) 
-            ? command.pipeline.map((stage: any) => Object.keys(stage)[0]).join(' → ')
-            : undefined,
-        }
-
-      case 'count':
-      case 'countDocuments':
-        return {
-          filter: scrub(command.query || command.filter),
-        }
-
-      case 'createIndexes':
-        return {
-          indexes: command.indexes?.map((idx: any) => ({
-            name: idx.name,
-            keys: Object.keys(idx.key || {}),
-          })),
-        }
-
-      default:
-        // For other commands, return a minimal preview
-        return {
-          command: commandName,
-          collection: command.collection || command[commandName],
-        }
+    // If no filter available, return minimal info
+    return {
+      command: commandName,
+      collection: command.collection || command[commandName],
     }
   } catch (error) {
     return { command: commandName, error: 'Failed to build preview' }

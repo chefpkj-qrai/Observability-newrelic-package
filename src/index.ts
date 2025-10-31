@@ -9,6 +9,3 @@ export {
 // Service exports
 export type { ObservabilityService } from './observability.service.factory'
 export { createObservabilityService } from './observability.service.factory'
-
-// Utilities
-export { scrub } from './scrub'

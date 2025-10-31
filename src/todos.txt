@@ -1,0 +1,4 @@
+remove console logs
+remove broadcast specific code
+remove tenant id specific code (x-company-id etc)
+keep only filter query visiblity no need of update modifier, insert doc etc. also cover all the possible queries. see for an easy way.

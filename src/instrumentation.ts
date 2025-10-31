@@ -33,8 +33,6 @@ const observabilityService = createObservabilityService()
 export function initializeObservability(): void {
   // Initialize axios distributed tracing (optional - safe if axios not installed)
   initializeAxiosTracing()
-  
-  console.log('✅ Observability instrumentation initialized')
 }
 
 // Export the mongo registration function for internal use
@@ -61,21 +59,12 @@ export { registerMongoClient }
 export function observabilityMiddleware() {
   return (req: any, res: any, next: any) => {
     try {
-      // Extract tenant/organization info from common header patterns
-      const tenantId =
-        req.headers['x-company-id'] ||
-        req.headers['x-client-id'] ||
-        req.headers['x-tenant-id'] ||
-        req.headers['client-id'] ||
-        'unknown'
-
       // Add basic HTTP request attributes
       observabilityService.addCustomAttributes({
         'http.method': req.method,
         'http.url': req.url,
         'http.path': req.path,
         'http.route': (req.route && req.route.path) || req.path,
-        'tenant.id': tenantId,
         'request.id': req.headers['x-request-id'],
         'user.agent': req.headers['user-agent'],
       })
@@ -84,7 +73,7 @@ export function observabilityMiddleware() {
       const routeName = `${req.method} ${(req.route && req.route.path) || req.path}`
       observabilityService.setTransactionName(routeName)
     } catch (error) {
-      console.error('Error in observability middleware:', error)
+      // Error in observability middleware - fail silently
     }
     next()
   }
