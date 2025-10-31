@@ -16,12 +16,13 @@ class NewRelicObservabilityService implements ObservabilityService {
     try {
       // Check if New Relic is available
       if (!newrelic || typeof newrelic.addCustomAttributes !== 'function') {
+        console.warn('New Relic is not available or addCustomAttributes is not a function')
         return
       }
       
       newrelic.addCustomAttributes(attributes)
     } catch (error) {
-      // Failed to add New Relic custom attributes - fail silently
+      console.error('Failed to add New Relic custom attributes:', error, attributes)
     }
   }
 
