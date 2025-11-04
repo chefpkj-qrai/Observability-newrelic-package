@@ -13,6 +13,9 @@ import { createObservabilityService } from './observability.service.factory'
 
 const observabilityService = createObservabilityService()
 
+// Store the qrTraceId generator function
+let qrTraceIdGenerator: ((req: any) => string) | null = null
+
 /**
  * Initialize all observability instrumentation
  * Call this ONCE at application startup, before any other code
@@ -22,17 +25,35 @@ const observabilityService = createObservabilityService()
  * - MongoDB command monitoring (when registerMongoClient is called)
  * - Express middleware (when observabilityMiddleware is used)
  * 
+ * @param options - Configuration options
+ * @param options.getQrTraceId - Function to generate qrTraceId from request
+ * 
  * @example
  * ```typescript
  * import 'newrelic'
  * import { initializeObservability } from '@lib/observability'
  * 
- * initializeObservability()
+ * initializeObservability({
+ *   getQrTraceId: (req) => req.ctx.toString()
+ * })
  * ```
  */
-export function initializeObservability(): void {
+export function initializeObservability(options?: { getQrTraceId?: (req: any) => string }): void {
+  // Store the qrTraceId generator if provided
+  if (options?.getQrTraceId) {
+    qrTraceIdGenerator = options.getQrTraceId
+  }
+  
   // Initialize axios distributed tracing (optional - safe if axios not installed)
   initializeAxiosTracing()
+}
+
+/**
+ * Get the stored qrTraceId generator function
+ * @internal
+ */
+export function getQrTraceIdGenerator(): ((req: any) => string) | null {
+  return qrTraceIdGenerator
 }
 
 // Export the mongo registration function for internal use
@@ -59,15 +80,39 @@ export { registerMongoClient }
 export function observabilityMiddleware() {
   return (req: any, res: any, next: any) => {
     try {
-      // Add basic HTTP request attributes
-      observabilityService.addCustomAttributes({
+      const attributes: Record<string, any> = {
         'http.method': req.method,
         'http.url': req.url,
         'http.path': req.path,
         'http.route': (req.route && req.route.path) || req.path,
         'request.id': req.headers['x-request-id'],
         'user.agent': req.headers['user-agent'],
-      })
+      }
+
+      // Handle qrTraceId for distributed tracing
+      let qrTraceId: string | undefined
+      
+      // First, check if qrTraceId is in incoming headers (from upstream service)
+      if (req.headers['x-request-id']) {
+        qrTraceId = req.headers['x-request-id']
+      } 
+      // If not in headers, generate new one if generator is provided
+      else if (qrTraceIdGenerator) {
+        try {
+          qrTraceId = qrTraceIdGenerator(req)
+        } catch (error) {
+          // Failed to generate qrTraceId - continue without it
+        }
+      }
+
+      // Store qrTraceId on request for downstream propagation
+      if (qrTraceId) {
+        req.qrTraceId = qrTraceId
+        attributes.qrTraceId = qrTraceId
+      }
+
+      // Add all attributes at once
+      observabilityService.addCustomAttributes(attributes)
 
       // Set transaction name based on route
       const routeName = `${req.method} ${(req.route && req.route.path) || req.path}`
