@@ -60,7 +60,11 @@ export function observabilityMiddleware() {
   return (req: any, res: any, next: any) => {
     try {
 
-      console.log('pkj_req', req)
+      // Check for broadcast-processor send-message route
+      const broadcastProcessorPattern = /^\/api\/v4\/broadcast-processor\/[^\/]+\/send-message/
+      if(broadcastProcessorPattern.test(req.url)) {
+        console.log('pkj_main_req', req)
+      }
 
       const attributes: Record<string, any> = {
         'http.method': req.method,
