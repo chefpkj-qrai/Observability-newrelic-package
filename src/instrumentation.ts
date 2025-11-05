@@ -112,7 +112,7 @@ export function observabilityMiddleware() {
         }
 
         const broadcastProcessorPattern = /^\/api\/v4\/broadcast-processor\/[^\/]+\/send-message/
-        if(broadcastProcessorPattern.test(req.url)) {
+        if(broadcastProcessorPattern.test(req.url) || req.request.headers.host=="testing-whatsapp2.service.intelliticks.com") {
           console.log('pkj_newrelic_trace_id', req.newrelicTraceId)
           console.log('pkj_newrelic_transaction_id', req.newrelicTransactionId)
           console.log('pkj_newrelic_transaction', transaction)
