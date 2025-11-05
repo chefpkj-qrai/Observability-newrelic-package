@@ -13,9 +13,6 @@ import { createObservabilityService } from './observability.service.factory'
 
 const observabilityService = createObservabilityService()
 
-// Store the qrTraceId generator function
-let qrTraceIdGenerator: ((req: any) => string) | null = null
-
 /**
  * Initialize all observability instrumentation
  * Call this ONCE at application startup, before any other code
@@ -25,35 +22,17 @@ let qrTraceIdGenerator: ((req: any) => string) | null = null
  * - MongoDB command monitoring (when registerMongoClient is called)
  * - Express middleware (when observabilityMiddleware is used)
  * 
- * @param options - Configuration options
- * @param options.getQrTraceId - Function to generate qrTraceId from request
- * 
  * @example
  * ```typescript
  * import 'newrelic'
  * import { initializeObservability } from '@lib/observability'
  * 
- * initializeObservability({
- *   getQrTraceId: (req) => req.ctx.toString()
- * })
+ * initializeObservability()
  * ```
  */
-export function initializeObservability(options?: { getQrTraceId?: (req: any) => string }): void {
-  // Store the qrTraceId generator if provided
-  if (options?.getQrTraceId) {
-    qrTraceIdGenerator = options.getQrTraceId
-  }
-  
+export function initializeObservability(): void {
   // Initialize axios distributed tracing (optional - safe if axios not installed)
   initializeAxiosTracing()
-}
-
-/**
- * Get the stored qrTraceId generator function
- * @internal
- */
-export function getQrTraceIdGenerator(): ((req: any) => string) | null {
-  return qrTraceIdGenerator
 }
 
 // Export the mongo registration function for internal use
@@ -92,24 +71,17 @@ export function observabilityMiddleware() {
       // Handle qrTraceId for distributed tracing
       let qrTraceId: string | undefined
       
-      // First, check if qrTraceId is in incoming headers (from upstream service)
+      // Check if qrTraceId is in incoming headers (from upstream service)
       if (req.headers['x-request-id']) {
         qrTraceId = req.headers['x-request-id']
-      } 
-      // If not in headers, generate new one if generator is provided
-      else if (qrTraceIdGenerator) {
-        try {
-          qrTraceId = qrTraceIdGenerator(req)
-        } catch (error) {
-          // Failed to generate qrTraceId - continue without it
-        }
       }
 
       // Store qrTraceId on request for downstream propagation
       if (qrTraceId) {
-        req.qrTraceId = qrTraceId
         attributes.qrTraceId = qrTraceId
       }
+
+      //TODO: here you will add the traceId in BEGIN request body
 
       // Add all attributes at once
       observabilityService.addCustomAttributes(attributes)
