@@ -80,7 +80,29 @@ export function observabilityMiddleware() {
         'user.agent': req.headers['user-agent'],
       }
 
-      //TODO: here you will add the traceId in BEGIN request body
+      // Extract New Relic trace ID and transaction ID and set them on the request object
+      try {
+        const transaction = observabilityService.getTransaction()
+        if (transaction) {
+          const newrelicTraceId = transaction.traceId || ''
+          const newrelicTransactionId = transaction.id || ''
+          
+          // Set on request object for use in other middleware/handlers
+          req.newrelicTraceId = newrelicTraceId
+          req.newrelicTransactionId = newrelicTransactionId
+        }
+
+
+        const broadcastProcessorPattern = /^\/api\/v4\/broadcast-processor\/[^\/]+\/send-message/
+      if(broadcastProcessorPattern.test(req.url)) {
+        console.log('pkj_newrelic_trace_id', req.newrelicTraceId)
+        console.log('pkj_newrelic_transaction_id', req.newrelicTransactionId)
+        console.log('pkj_newrelic_transaction', transaction)
+        console.log('pkj_qrTraceId', qrTraceId)
+      }
+      } catch (error) {
+        // Failed to extract New Relic IDs - fail silently
+      }
 
       // Add all attributes at once
       observabilityService.addCustomAttributes(attributes)
