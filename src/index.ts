@@ -4,6 +4,9 @@ export {
   observabilityMiddleware,
   observabilityService,
   registerMongoClient,
+  getNewRelicTraceId,
+  getNewRelicTransactionId,
+  getNewRelicIds,
 } from './instrumentation'
 
 // Service exports

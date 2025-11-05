@@ -15,6 +15,87 @@ import newrelic from 'newrelic'
 const observabilityService = createObservabilityService()
 
 /**
+ * Get New Relic trace ID for the current transaction
+ * Trace ID is shared across all services in a distributed trace
+ * 
+ * @returns {string} The trace ID, or empty string if not available
+ * 
+ * @example
+ * ```typescript
+ * import { getNewRelicTraceId } from '@lib/observability'
+ * 
+ * const traceId = getNewRelicTraceId()
+ * console.log('Current trace ID:', traceId)
+ * ```
+ */
+export function getNewRelicTraceId(): string {
+  try {
+    const traceMetadata = newrelic.getTraceMetadata()
+    if (traceMetadata && traceMetadata.traceId) {
+      return traceMetadata.traceId
+    }
+  } catch (error) {
+    // getTraceMetadata might not be available or fail - return empty string
+  }
+  return ''
+}
+
+/**
+ * Get New Relic transaction ID (span ID) for the current service's transaction
+ * This is unique to the current service, not the parent transaction
+ * 
+ * @returns {string} The transaction ID (span ID), or empty string if not available
+ * 
+ * @example
+ * ```typescript
+ * import { getNewRelicTransactionId } from '@lib/observability'
+ * 
+ * const transactionId = getNewRelicTransactionId()
+ * console.log('Current transaction ID:', transactionId)
+ * ```
+ */
+export function getNewRelicTransactionId(): string {
+  try {
+    const traceMetadata = newrelic.getTraceMetadata()
+    if (traceMetadata && traceMetadata.spanId) {
+      return traceMetadata.spanId
+    }
+  } catch (error) {
+    // getTraceMetadata might not be available or fail - return empty string
+  }
+  return ''
+}
+
+/**
+ * Get both New Relic trace ID and transaction ID in a single call
+ * 
+ * @returns {{ traceId: string, transactionId: string }} Object containing trace ID and transaction ID
+ * 
+ * @example
+ * ```typescript
+ * import { getNewRelicIds } from '@lib/observability'
+ * 
+ * const { traceId, transactionId } = getNewRelicIds()
+ * console.log('Trace ID:', traceId)
+ * console.log('Transaction ID:', transactionId)
+ * ```
+ */
+export function getNewRelicIds(): { traceId: string; transactionId: string } {
+  try {
+    const traceMetadata = newrelic.getTraceMetadata()
+    if (traceMetadata) {
+      return {
+        traceId: traceMetadata.traceId || '',
+        transactionId: traceMetadata.spanId || '',
+      }
+    }
+  } catch (error) {
+    // getTraceMetadata might not be available or fail - return empty strings
+  }
+  return { traceId: '', transactionId: '' }
+}
+
+/**
  * Initialize all observability instrumentation
  * Call this ONCE at application startup, before any other code
  * 
@@ -81,46 +162,16 @@ export function observabilityMiddleware() {
         'user.agent': req.headers['user-agent'],
       }
 
-      // Extract New Relic trace ID and transaction ID and set them on the request object
-      try {
-        const transaction = observabilityService.getTransaction()
-        if (transaction) {
-          // Get trace ID and span ID using New Relic's getTraceMetadata API
-          // spanId is unique to this service's transaction (not the parent's)
-          let newrelicTraceId = ''
-          let newrelicTransactionId = ''
-          
-          try {
-            const traceMetadata = newrelic.getTraceMetadata()
-            if (traceMetadata) {
-              // Trace ID is shared across all services in the distributed trace
-              if (traceMetadata.traceId) {
-                newrelicTraceId = traceMetadata.traceId
-              }
-              // Span ID is unique to this service's transaction (current service, not parent)
-              if (traceMetadata.spanId) {
-                newrelicTransactionId = traceMetadata.spanId
-              }
-            }
-          } catch (traceError) {
-            // getTraceMetadata might not be available or fail - ignore
-          }
-          
-          // Set on request object for use in other middleware/handlers
-          req.newrelicTraceId = newrelicTraceId
-          req.newrelicTransactionId = newrelicTransactionId
-        }
-
-        const broadcastProcessorPattern = /^\/api\/v4\/broadcast-processor\/[^\/]+\/send-message/
-        if(broadcastProcessorPattern.test(req.url) || req.request.headers.host=="testing-whatsapp2.service.intelliticks.com") {
-          console.log('pkj_newrelic_trace_id', req.newrelicTraceId)
-          console.log('pkj_newrelic_transaction_id', req.newrelicTransactionId)
-          console.log('pkj_newrelic_transaction', transaction)
-          console.log('pkj_qrTraceId', qrTraceId)
-        }
-      } catch (error) {
-        // Failed to extract New Relic IDs - fail silently
-      }
+      // // Extract New Relic trace ID and set it on the request object
+      // try {
+      //   const newrelicTraceId = getNewRelicTraceId()
+      //   if (newrelicTraceId) {
+      //     // Set on request object for use in other middleware/handlers
+      //     req.newrelicTraceId = newrelicTraceId
+      //   }
+      // } catch (error) {
+      //   // Failed to extract New Relic IDs - fail silently
+      // }
 
       // Add all attributes at once
       observabilityService.addCustomAttributes(attributes)

@@ -56,7 +56,7 @@ class NewRelicObservabilityService implements ObservabilityService {
     try {
       newrelic.noticeError(error)
     } catch (error) {
-      console.error('Failed to notice error in New Relic:', error)
+      // console.error('Failed to notice error in New Relic:', error)
     }
   }
 
@@ -89,7 +89,7 @@ class NewRelicObservabilityService implements ObservabilityService {
         this.setTransactionName('broadcast.sendMessage.me')
       }
     } catch (error) {
-      console.error('Error tracking request metadata:', error)
+      // console.error('Error tracking request metadata:', error)
     }
   }
 }
