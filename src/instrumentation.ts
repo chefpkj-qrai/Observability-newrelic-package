@@ -85,15 +85,22 @@ export function observabilityMiddleware() {
       try {
         const transaction = observabilityService.getTransaction()
         if (transaction) {
-          // Get transaction ID from the wrapped transaction object
-          const newrelicTransactionId = transaction._transaction?.id || ''
-          
           // Get trace ID and span ID using New Relic's getTraceMetadata API
+          // spanId is unique to this service's transaction (not the parent's)
           let newrelicTraceId = ''
+          let newrelicTransactionId = ''
+          
           try {
             const traceMetadata = newrelic.getTraceMetadata()
-            if (traceMetadata && traceMetadata.traceId) {
-              newrelicTraceId = traceMetadata.traceId
+            if (traceMetadata) {
+              // Trace ID is shared across all services in the distributed trace
+              if (traceMetadata.traceId) {
+                newrelicTraceId = traceMetadata.traceId
+              }
+              // Span ID is unique to this service's transaction (current service, not parent)
+              if (traceMetadata.spanId) {
+                newrelicTransactionId = traceMetadata.spanId
+              }
             }
           } catch (traceError) {
             // getTraceMetadata might not be available or fail - ignore
