@@ -60,37 +60,24 @@ export function observabilityMiddleware() {
   return (req: any, res: any, next: any) => {
     try {
 
-      // Check for broadcast-processor send-message route
-      const broadcastProcessorPattern = /^\/api\/v4\/broadcast-processor\/[^\/]+\/send-message/
-      if(broadcastProcessorPattern.test(req.url)) {
-        console.log('pkj_main_req', req)
-        console.log('pkj_main_req_ctx', req.ctx?.id)
-        console.log('pkj_main_req_headers', req.headers)
-      }
+      // // Check for broadcast-processor send-message route
+      // const broadcastProcessorPattern = /^\/api\/v4\/broadcast-processor\/[^\/]+\/send-message/
+      // if(broadcastProcessorPattern.test(req.url)) {
+      //   console.log('pkj_main_req', req)
+      //   console.log('pkj_main_req_ctx', req.ctx?.id)
+      //   console.log('pkj_main_req_headers', req.headers)
+      // }
 
       // Extract request ID from headers, fallback to ctx.id
-      const requestId = req.headers['x-request-id'] || req.ctx?.id
+      const qrTraceId: string | undefined = req.headers['x-request-id'] || req.ctx?.id
 
       const attributes: Record<string, any> = {
         'http.method': req.method,
         'http.url': req.url,
         'http.path': req.path,
         'http.route': (req.route && req.route.path) || req.path,
-        'request.id': req.headers['x-request-id'],
+        'qrTraceId': qrTraceId,
         'user.agent': req.headers['user-agent'],
-      }
-
-      // Handle qrTraceId for distributed tracing
-      let qrTraceId: string | undefined
-      
-      // Check if qrTraceId is in incoming headers (from upstream service)
-      if (req.headers['x-request-id']) {
-        qrTraceId = req.headers['x-request-id']
-      }
-
-      // Store qrTraceId on request for downstream propagation
-      if (qrTraceId) {
-        attributes.qrTraceId = qrTraceId
       }
 
       //TODO: here you will add the traceId in BEGIN request body
