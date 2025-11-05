@@ -64,7 +64,12 @@ export function observabilityMiddleware() {
       const broadcastProcessorPattern = /^\/api\/v4\/broadcast-processor\/[^\/]+\/send-message/
       if(broadcastProcessorPattern.test(req.url)) {
         console.log('pkj_main_req', req)
+        console.log('pkj_main_req_ctx', req.ctx?.id)
+        console.log('pkj_main_req_headers', req.headers)
       }
+
+      // Extract request ID from headers, fallback to ctx.id
+      const requestId = req.headers['x-request-id'] || req.ctx?.id
 
       const attributes: Record<string, any> = {
         'http.method': req.method,
