@@ -10,6 +10,7 @@
 import { initializeAxiosTracing } from './axios-tracing'
 import { registerMongoClient } from './mongo-tracing'
 import { createObservabilityService } from './observability.service.factory'
+import newrelic from 'newrelic'
 
 const observabilityService = createObservabilityService()
 
@@ -84,22 +85,32 @@ export function observabilityMiddleware() {
       try {
         const transaction = observabilityService.getTransaction()
         if (transaction) {
-          const newrelicTraceId = transaction.traceId || ''
-          const newrelicTransactionId = transaction.id || ''
+          // Get transaction ID from the wrapped transaction object
+          const newrelicTransactionId = transaction._transaction?.id || ''
+          
+          // Get trace ID and span ID using New Relic's getTraceMetadata API
+          let newrelicTraceId = ''
+          try {
+            const traceMetadata = newrelic.getTraceMetadata()
+            if (traceMetadata && traceMetadata.traceId) {
+              newrelicTraceId = traceMetadata.traceId
+            }
+          } catch (traceError) {
+            // getTraceMetadata might not be available or fail - ignore
+          }
           
           // Set on request object for use in other middleware/handlers
           req.newrelicTraceId = newrelicTraceId
           req.newrelicTransactionId = newrelicTransactionId
         }
 
-
         const broadcastProcessorPattern = /^\/api\/v4\/broadcast-processor\/[^\/]+\/send-message/
-      if(broadcastProcessorPattern.test(req.url)) {
-        console.log('pkj_newrelic_trace_id', req.newrelicTraceId)
-        console.log('pkj_newrelic_transaction_id', req.newrelicTransactionId)
-        console.log('pkj_newrelic_transaction', transaction)
-        console.log('pkj_qrTraceId', qrTraceId)
-      }
+        if(broadcastProcessorPattern.test(req.url)) {
+          console.log('pkj_newrelic_trace_id', req.newrelicTraceId)
+          console.log('pkj_newrelic_transaction_id', req.newrelicTransactionId)
+          console.log('pkj_newrelic_transaction', transaction)
+          console.log('pkj_qrTraceId', qrTraceId)
+        }
       } catch (error) {
         // Failed to extract New Relic IDs - fail silently
       }
