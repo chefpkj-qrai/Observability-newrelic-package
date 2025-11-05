@@ -59,6 +59,9 @@ export { registerMongoClient }
 export function observabilityMiddleware() {
   return (req: any, res: any, next: any) => {
     try {
+
+      console.log('pkj_req', req)
+
       const attributes: Record<string, any> = {
         'http.method': req.method,
         'http.url': req.url,
