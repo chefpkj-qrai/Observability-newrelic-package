@@ -82,7 +82,37 @@ function setupMonitoring(): void {
           const cmdData = commandTracking.get(requestId)
 
           if (cmdData) {
-            // Add custom span attributes for this operation
+            try {
+              // Get transaction and find MongoDB segment
+              const transaction = observabilityService.getTransaction()
+              if (transaction && typeof transaction.getActiveSegment === 'function') {
+                const activeSegment = transaction.getActiveSegment()
+                
+                // Walk up to find the MongoDB datastore segment
+                let segment = activeSegment
+                while (segment) {
+                  // Check if this is a MongoDB segment (starts with "Datastore/")
+                  if (segment.name && segment.name.includes('Datastore/') && segment.name.includes('MongoDB')) {
+                    // Add attributes to this specific MongoDB segment
+                    if (typeof segment.addAttribute === 'function') {
+                      segment.addAttribute('db.statement.preview', JSON.stringify(cmdData.preview))
+                      segment.addAttribute('db.collection.name', cmdData.collection)
+                      segment.addAttribute('db.operation.name', commandName)
+                    }
+                    break
+                  }
+                  // Move to parent segment
+                  segment = segment.parent
+                  
+                  // Safety: don't walk more than 10 levels
+                  if (!segment || segment === segment.parent) break
+                }
+              }
+            } catch (segmentError) {
+              // Segment walking failed, continue with fallback
+            }
+            
+            // Always add as custom span attributes as well
             observabilityService.addCustomSpanAttributes({
               'db.system': 'mongodb',
               'db.name': cmdData.databaseName,
@@ -108,7 +138,38 @@ function setupMonitoring(): void {
           const cmdData = commandTracking.get(requestId)
 
           if (cmdData) {
-            // Add custom span attributes for this failed operation
+            try {
+              // Get transaction and find MongoDB segment
+              const transaction = observabilityService.getTransaction()
+              if (transaction && typeof transaction.getActiveSegment === 'function') {
+                const activeSegment = transaction.getActiveSegment()
+                
+                // Walk up to find the MongoDB datastore segment
+                let segment = activeSegment
+                while (segment) {
+                  // Check if this is a MongoDB segment
+                  if (segment.name && segment.name.includes('Datastore/') && segment.name.includes('MongoDB')) {
+                    // Add attributes to this specific MongoDB segment
+                    if (typeof segment.addAttribute === 'function') {
+                      segment.addAttribute('db.statement.preview', JSON.stringify(cmdData.preview))
+                      segment.addAttribute('db.collection.name', cmdData.collection)
+                      segment.addAttribute('db.operation.name', commandName)
+                      segment.addAttribute('db.error.message', String(failure?.message || failure))
+                    }
+                    break
+                  }
+                  // Move to parent segment
+                  segment = segment.parent
+                  
+                  // Safety: don't walk more than 10 levels
+                  if (!segment || segment === segment.parent) break
+                }
+              }
+            } catch (segmentError) {
+              // Segment walking failed, continue with fallback
+            }
+            
+            // Always add as custom span attributes as well
             observabilityService.addCustomSpanAttributes({
               'db.system': 'mongodb',
               'db.name': cmdData.databaseName,
@@ -151,12 +212,28 @@ function buildCommandPreview(commandName: string, command: any): any {
       command.q ||
       command.deletes?.[0]?.q
 
-    // For aggregate, show pipeline stages overview
+    // For aggregate, show pipeline stages overview and first stage details
     if (commandName === 'aggregate' && Array.isArray(command.pipeline)) {
-      return {
-        filter: filter,
-        pipelineStages: command.pipeline.map((stage: any) => Object.keys(stage)[0]).join(' → '),
+      const stageNames = command.pipeline.map((stage: any) => Object.keys(stage)[0])
+      const preview: any = {
+        pipelineStages: stageNames.join(' → '),
+        stageCount: command.pipeline.length,
       }
+      
+      // Include the first stage details (usually $match with the main filter)
+      if (command.pipeline[0]) {
+        const firstStageName = stageNames[0]
+        preview.firstStage = {
+          [firstStageName]: command.pipeline[0][firstStageName]
+        }
+      }
+      
+      // Keep filter for backward compatibility (usually undefined for aggregations)
+      if (filter) {
+        preview.filter = filter
+      }
+      
+      return preview
     }
 
     // For all other commands, just show the filter if available
