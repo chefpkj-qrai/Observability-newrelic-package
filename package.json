@@ -1,6 +1,6 @@
 {
   "name": "awesome-instrumentation-core",
-  "version": "6.1.0",
+  "version": "6.2.0",
   "description": "Generic observability instrumentation for Node.js applications with New Relic",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -17,20 +17,26 @@
     "tracing",
     "mongodb",
     "axios",
-    "distributed-tracing"
+    "node-fetch",
+    "distributed-tracing",
+    "external-calls"
   ],
   "author": "chefpkj",
   "license": "MIT",
   "peerDependencies": {
     "newrelic": ">=11.0.0",
     "mongodb": ">=6.0.0",
-    "axios": ">=1.0.0"
+    "axios": ">=1.0.0",
+    "node-fetch": ">=2.0.0"
   },
   "peerDependenciesMeta": {
     "axios": {
       "optional": true
     },
     "mongodb": {
+      "optional": true
+    },
+    "node-fetch": {
       "optional": true
     }
   },
