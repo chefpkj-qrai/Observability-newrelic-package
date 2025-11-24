@@ -8,6 +8,7 @@
  * For project-specific tracking logic, see: request-metadata.helper.ts
  */
 import { initializeAxiosTracing } from './axios-tracing'
+import { initializeAxiosExternalTracing } from './axios-external-tracing'
 import { registerMongoClient } from './mongo-tracing'
 import { createObservabilityService } from './observability.service.factory'
 import newrelic from 'newrelic'
@@ -100,21 +101,35 @@ export function getNewRelicIds(): { traceId: string; transactionId: string } {
  * Call this ONCE at application startup, before any other code
  * 
  * This function sets up:
- * - Axios distributed tracing (if axios is installed)
+ * - Axios tracing (basic or enhanced based on options)
  * - MongoDB command monitoring (when registerMongoClient is called)
  * - Express middleware (when observabilityMiddleware is used)
+ * 
+ * @param options Configuration options
+ * @param options.enhancedAxiosTracking - If true, enables full axios external call tracking with metrics (URL, status, duration)
+ *                                         If false (default), only adds distributed tracing headers
  * 
  * @example
  * ```typescript
  * import 'newrelic'
  * import { initializeObservability } from '@lib/observability'
  * 
+ * // Basic axios tracing (distributed tracing headers only)
  * initializeObservability()
+ * 
+ * // Enhanced axios tracing (with full external call metrics)
+ * initializeObservability({ enhancedAxiosTracking: true })
  * ```
  */
-export function initializeObservability(): void {
-  // Initialize axios distributed tracing (optional - safe if axios not installed)
-  initializeAxiosTracing()
+export function initializeObservability(options?: { enhancedAxiosTracking?: boolean }): void {
+  // Initialize axios tracing based on options
+  if (options?.enhancedAxiosTracking) {
+    // Enhanced: Full external call tracking with metrics
+    initializeAxiosExternalTracing()
+  } else {
+    // Basic: Only distributed tracing headers (backward compatible)
+    initializeAxiosTracing()
+  }
 }
 
 // Export the mongo registration function for internal use

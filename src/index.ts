@@ -20,3 +20,18 @@ export {
   clearExternalCallsMap,
   clearNodeFetchCleanupInterval
 } from './node-fetch-tracing'
+
+// Axios Enhanced External Tracing exports
+export {
+  initializeAxiosExternalTracing,
+  isAxiosExternalTracingInitialized,
+  getAxiosExternalCallsForCurrentTransaction,
+  clearAxiosExternalCallsMap,
+  clearAxiosExternalCleanupInterval
+} from './axios-external-tracing'
+
+// Axios Basic Tracing exports (for backward compatibility)
+export {
+  initializeAxiosTracing,
+  isAxiosTracingInitialized
+} from './axios-tracing'
