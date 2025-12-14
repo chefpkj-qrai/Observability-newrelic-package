@@ -1,6 +1,6 @@
 {
   "name": "awesome-instrumentation-core",
-  "version": "7.0.0",
+  "version": "7.0.1",
   "description": "Generic observability instrumentation for Node.js applications with New Relic",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

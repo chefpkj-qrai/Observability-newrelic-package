@@ -165,8 +165,12 @@ export function observabilityMiddleware() {
       //   console.log('pkj_main_req_headers', req.headers)
       // }
 
-      // Extract request ID from headers, fallback to ctx.id
-      const qrTraceId: string | undefined = req.headers['x-request-id'] || req.ctx?.id
+      // Extract request ID with fallback chain:
+      // 1. req.reqId (set by service-specific middleware like whatsapp-service)
+      // 2. req.ctx?.id (set by context middleware)
+      // 3. req.headers['x-request-id'] (passed from upstream services)
+      // This ensures backward compatibility while supporting per-service traceIds
+      const qrTraceId: string | undefined = req.reqId?.toString() || req.ctx?.id || req.headers['x-request-id']
 
       const attributes: Record<string, any> = {
         'http.method': req.method,
