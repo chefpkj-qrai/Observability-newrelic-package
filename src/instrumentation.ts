@@ -168,17 +168,20 @@ export function observabilityMiddleware() {
       // Extract request ID with fallback chain:
       // 1. req.reqId (set by service-specific middleware like whatsapp-service)
       // 2. req.ctx?.id (set by context middleware)
-      // 3. req.headers['x-request-id'] (passed from upstream services)
-      // This ensures backward compatibility while supporting per-service traceIds
-      const qrTraceId: string | undefined = req.reqId?.toString() || req.ctx?.id || req.headers['x-request-id']
+      // Note: We do NOT use req.headers['x-request-id'] as fallback because that's the calling service's ID
+      const qrTraceId: string | undefined = req.reqId?.toString() || req.ctx?.id
 
       const attributes: Record<string, any> = {
         'http.method': req.method,
         'http.url': req.url,
         'http.path': req.path,
         'http.route': (req.route && req.route.path) || req.path,
-        'qrTraceId': qrTraceId,
         'user.agent': req.headers['user-agent'],
+      }
+
+      // Only set qrTraceId if we have a custom request ID
+      if (qrTraceId) {
+        attributes['qrTraceId'] = qrTraceId
       }
 
       // // Extract New Relic trace ID and set it on the request object
