@@ -136,26 +136,113 @@ export function initializeObservability(options?: { enhancedAxiosTracking?: bool
 export { registerMongoClient }
 
 /**
+ * Options for configuring observability middleware behavior
+ */
+export interface ObservabilityMiddlewareOptions {
+  /**
+   * Whether to automatically ignore common health check endpoints
+   * Default: true
+   * 
+   * When enabled, these paths are ignored by default:
+   * - /health
+   * - /healthcheck
+   * - /ping
+   * - /status
+   * 
+   * Note: Root path (/) is NOT included by default as it's not universally used
+   * for health checks. Add it via ignorePaths if needed in your project.
+   */
+  ignoreHealthChecks?: boolean
+
+  /**
+   * Additional paths or patterns to ignore for New Relic tracking
+   * Can be exact strings or RegExp patterns
+   * 
+   * @example
+   * ```typescript
+   * ignorePaths: ['/custom-health', /^\/internal\/.* /]
+   * ```
+   */
+  ignorePaths?: Array<string | RegExp>
+}
+
+/**
  * Generic Express middleware to track ALL incoming requests
  * Add this as the FIRST middleware in your app
  * 
  * This middleware is generic and framework-agnostic. It captures basic HTTP
  * request metadata that is common across all web applications.
  * 
+ * By default, common health check endpoints are automatically ignored to prevent
+ * unnecessary data being sent to New Relic.
+ * 
  * For business-specific tracking (e.g., broadcast IDs, template IDs),
  * use the project-specific helper: trackRequestMetadata()
+ * 
+ * @param options Configuration options for the middleware
+ * @param options.ignoreHealthChecks - Auto-ignore common health check paths (default: true)
+ * @param options.ignorePaths - Additional custom paths/patterns to ignore
  * 
  * @example
  * ```typescript
  * import { observabilityMiddleware } from '@lib/observability'
  * 
  * const app = express()
- * app.use(observabilityMiddleware()) // First middleware
+ * 
+ * // Default: Auto-ignores health checks
+ * app.use(observabilityMiddleware())
+ * 
+ * // Disable auto-ignore
+ * app.use(observabilityMiddleware({ ignoreHealthChecks: false }))
+ * 
+ * // Add custom ignore patterns
+ * app.use(observabilityMiddleware({ 
+ *   ignorePaths: ['/custom-health', /^\/internal\/.* /] 
+ * }))
  * ```
  */
-export function observabilityMiddleware() {
+export function observabilityMiddleware(options?: ObservabilityMiddlewareOptions) {
+  // Default ignore patterns for common health check endpoints
+  const defaultIgnorePaths = ['/health', '/healthcheck', '/ping', '/status']
+  const shouldIgnoreHealthChecks = options?.ignoreHealthChecks !== false
+  const customIgnorePaths = options?.ignorePaths || []
+
   return (req: any, res: any, next: any) => {
     try {
+      // Check if this request should be ignored from New Relic tracking
+      if (shouldIgnoreHealthChecks || customIgnorePaths.length > 0) {
+        const pathsToCheck: Array<string | RegExp> = [
+          ...(shouldIgnoreHealthChecks ? defaultIgnorePaths : []),
+          ...customIgnorePaths,
+        ]
+
+        const requestPath = req.url || req.path || ''
+        const shouldIgnore = pathsToCheck.some((pattern) => {
+          if (pattern instanceof RegExp) {
+            return pattern.test(requestPath)
+          }
+          // For root path, only match exactly '/' not '/something'
+          if (pattern === '/') {
+            return requestPath === '/' || requestPath === ''
+          }
+          // For other paths, match exact path or path with query params
+          return requestPath === pattern || requestPath.startsWith(`${pattern}?`)
+        })
+
+        if (shouldIgnore) {
+          // Ignore this transaction in New Relic
+          try {
+            const transaction = observabilityService.getTransaction()
+            if (transaction && typeof transaction.ignore === 'function') {
+              transaction.ignore()
+            }
+          } catch (error) {
+            // Failed to ignore transaction - fail silently
+          }
+          // Continue to next middleware without tracking
+          return next()
+        }
+      }
 
       // // Check for broadcast-processor send-message route
       // const broadcastProcessorPattern = /^\/api\/v4\/broadcast-processor\/[^\/]+\/send-message/

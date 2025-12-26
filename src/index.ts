@@ -9,6 +9,9 @@ export {
   getNewRelicIds,
 } from './instrumentation'
 
+// Type exports
+export type { ObservabilityMiddlewareOptions } from './instrumentation'
+
 // Service exports
 export type { ObservabilityService } from './observability.service.factory'
 export { createObservabilityService } from './observability.service.factory'

@@ -7,6 +7,7 @@ Generic observability instrumentation for Node.js applications using New Relic.
 - 🔍 Automatic MongoDB command tracing
 - 📊 Express middleware for request tracking
 - 🌐 Axios distributed tracing for HTTP clients
+- 🚫 Smart health check filtering (auto-ignores health endpoints)
 - 🛡️ Data scrubbing for sensitive information
 - 🎯 Type-safe TypeScript API
 - 🔌 Pluggable architecture
@@ -99,8 +100,44 @@ This automatically sets up:
 - MongoDB command monitoring (when `registerMongoClient` is called)
 - Express request tracking (when `observabilityMiddleware` is used)
 
-### `observabilityMiddleware()`
+### `observabilityMiddleware(options?)`
 Express middleware that tracks HTTP requests. Add as first middleware.
+
+**Automatic Health Check Filtering** 🎯
+
+By default, common health check endpoints are automatically ignored to prevent unnecessary data being sent to New Relic. This includes: `/health`, `/healthcheck`, `/ping`, `/status`.
+
+**Note:** Root path `/` is NOT included by default. If your project uses `/` as a health check, add it via the `ignorePaths` option (see examples below).
+
+**Options:**
+- `ignoreHealthChecks` (boolean, default: `true`) - Auto-ignore common health check paths
+- `ignorePaths` (Array<string | RegExp>) - Additional custom paths/patterns to ignore
+
+**Examples:**
+
+```typescript
+// Default: Auto-ignores health checks (recommended)
+app.use(observabilityMiddleware())
+
+// Disable auto-ignore (track everything)
+app.use(observabilityMiddleware({ ignoreHealthChecks: false }))
+
+// Add custom ignore patterns
+app.use(observabilityMiddleware({ 
+  ignorePaths: ['/custom-health', '/metrics', /^\/internal\/.*/] 
+}))
+
+// If your project uses '/' as health check (e.g., iticks-whatsapp-service)
+app.use(observabilityMiddleware({ 
+  ignorePaths: ['/']  // Add root path to ignore list
+}))
+
+// Combine: keep defaults + add custom
+app.use(observabilityMiddleware({ 
+  ignoreHealthChecks: true,  // Keep defaults
+  ignorePaths: ['/admin/health', '/']  // Add project-specific patterns
+}))
+```
 
 ### `registerMongoClient(getClient: () => MongoClient | null)`
 Registers MongoDB client for command tracing.
